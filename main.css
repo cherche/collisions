@@ -1,0 +1,17 @@
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+}
+
+div {
+  background-color: black;
+  position: fixed;
+}
+
+.player {
+  background-color: #F9444D;
+}
