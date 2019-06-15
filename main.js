@@ -166,10 +166,10 @@ const update = function update (dt) {
 let then = Date.now()
 const main = function main () {
   const now = Date.now()
-  const delta = now - then
+  const dt = (now - then) / 1000
 
   // Pass change in time in seconds
-  update(delta / 1000)
+  update(dt)
   render()
 
   then = now
