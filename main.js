@@ -1,3 +1,5 @@
+import Keyboard from './keyboard.js'
+
 const getRandomInt = function getRandomInt (min, max) {
   // Should be inclusive
   const range = max - min + 1
@@ -47,7 +49,7 @@ const addRandomRect = function addRandomRect () {
   document.body.appendChild(rect.el)
 }
 
-for (let i = 0; i < 25; i++) {
+for (let i = 0; i < 15; i++) {
   addRandomRect()
 }
 
@@ -78,89 +80,126 @@ const render = function render () {
   s.height = p.height + 'px'
 }
 
-/*
-const mouse = {
-  x: 100,
-  y: 500
-}
+const keyboard = new Keyboard()
+keyboard.bind(document.body)
 
-document.body.addEventListener('mousemove', function onmousemove (e) {
-  mouse.x = e.clientX
-  mouse.y = e.clientY
-})
-*/
-
-const v = 200
-
+const v = 300
 const update = function update (dt) {
-  const pRect = player.getBoundingRect()
-  const potY = player.y + v * dt
+  const p = player.getBoundingRect()
+  let dx = 0
+  let dy = 0
 
-  // Find all the blocks that are below the player
-  const below = blocks.filter(({ top, left, right }, i) => {
-    if (pRect.bottom <= top && (pRect.left < right && pRect.right > left)) {
-      divs[i].style.backgroundColor = '#1d63af'
-      return true
-    } else {
-      divs[i].style.backgroundColor = 'black'
-    }
-    /*
-    // Obvious, it has to be below us
-    return pRect.bottom < top &&
+  const states = keyboard.getStates()
+
+  if (states.w) {
+    dy--
+  }
+  if (states.a) {
+    dx--
+  }
+  if (states.s) {
+    dy++
+  }
+  if (states.d) {
+    dx++
+  }
+
+  const n = Math.sqrt(dx * dx + dy * dy)
+  if (n === 0) return
+  dx = dx / n * v * dt
+  dy = dy / n * v * dt
+
+  const g = {
+    left: p.left + dx,
+    right: p.right + dx,
+    top: p.top + dy,
+    bottom: p.bottom + dy
+  }
+
+  // We'll check for vertical collisions
+  if (dy > 0) {
+    // Find all the blocks that are below the player
+    const below = blocks.filter((b, i) => {
       // This is a tricky condition
       // Consider an opposite question: when is a block not below the player?
-      // That happens with pRect.left >= right || pRect.right <= left
+      // That happens with p.left >= b.right || p.right <= b.left
       // DeMorgan's laws allow us to flip that
-      (pRect.left < right && pRect.right > left)
-    */
-  })
-  const tops = below.map(block => block.top)
-  // Find the top-most
-  const top = Math.min.apply(null, tops)
+      if (p.bottom <= b.top && (p.left < b.right && p.right > b.left)) {
+        // It's unintuitive, but we do not use the ghost to determine collisions
+        // This is because using the ghost represents where the player would be,
+        // so our ghost would move beyond, we could not find the appropriate top
+        divs[i].style.backgroundColor = '#1d63af'
+        return true
+      } else {
+        divs[i].style.backgroundColor = 'black'
+      }
+    })
+    const tops = below.map(block => block.top)
+    // Find the top-most
+    const top = Math.min.apply(null, tops)
 
-  // If our potY ever puts us below that bound,
-  // our position gets pushed right back up
-  if (potY + 50 >= top) {
-    player.y = top - 50
-  } else {
-    player.y = potY
-  }
-  /*
-  const dx = mouse.x - player.x
-  const dy = mouse.y - player.y
-  if (dx === 0 && dy === 0) return
-
-  const playerRect = player.getBoundingRect()
-  if (dx < 0) {
-    console.log('moving left')
-    const rights = blocks.map(block => block.right)
-    const risks = rights.filter(right => right > playerRect.left)
-    const max = Math.min.apply(null, risks)
-    console.log('max', max)
-    console.log('mouse.x:', mouse.x)
-    if (mouse.x < max) {
-      console.log(' made it')
-      player.x = max
+    // If our ghost ever puts us below that bound,
+    // our position gets pushed right back up
+    if (g.bottom >= top) {
+      player.y = top - 50
     } else {
-      player.x = mouse.x
+      player.y = g.top
+    }
+  } else if (dy < 0) {
+    const above = blocks.filter((b, i) => {
+      if (p.top >= b.bottom && (p.left < b.right && p.right > b.left)) {
+        divs[i].style.backgroundColor = '#1ba698'
+        return true
+      } else {
+        divs[i].style.backgroundColor = 'black'
+      }
+    })
+    const bottoms = above.map(block => block.bottom)
+    const bottom = Math.max.apply(null, bottoms)
+
+    if (g.top <= bottom) {
+      player.y = bottom
+    } else {
+      player.y = g.top
     }
   }
 
-  player.x = mouse.x
-  player.y = mouse.y
-  */
+  // And also check for horizontal collisions
+  if (dx > 0) {
+    const righter = blocks.filter((b, i) => {
+      if (p.right <= b.left && (p.top < b.bottom && p.bottom > b.top)) {
+        divs[i].style.backgroundColor = '#e87a00'
+        return true
+      } else {
+        divs[i].style.backgroundColor = 'black'
+      }
+    })
+    const lefts = righter.map(block => block.left)
+    const left = Math.min.apply(null, lefts)
 
-  /*
-  const vx = mouse.x - player.x
-  const vy = mouse.y - player.y
-  console.log(vx, vy)
-  // Normalization factor for our vector (but actually with length 25)
-  const n = Math.sqrt(vx * vx + vy * vy)
-  if (n === 0) return
-  player.x += Math.round(350 * vx * dt / n)
-  player.y += Math.round(350 * vy * dt / n)
-  console.log(player.x, player.y)
-  */
+    if (g.right >= left) {
+      player.x = left - 50
+    } else {
+      player.x = g.left
+    }
+  } else if (dx < 0) {
+    const righter = blocks.filter((b, i) => {
+      if (p.left >= b.right && (p.top < b.bottom && p.bottom > b.top)) {
+        divs[i].style.backgroundColor = '#ffcc00'
+        return true
+      } else {
+        divs[i].style.backgroundColor = 'black'
+      }
+    })
+    const rights = righter.map(block => block.right)
+    const right = Math.max.apply(null, rights)
+
+    if (g.left <= right) {
+      player.x = right
+    } else {
+      player.x = g.left
+    }
+  }
 }
 
 let then = Date.now()
@@ -176,7 +215,5 @@ const main = function main () {
   requestAnimationFrame(main)
 }
 main()
-window.main = main
 
 window.player = player
-//window.mouse = mouse
