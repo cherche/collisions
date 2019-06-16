@@ -9,7 +9,7 @@ const getRandomInt = function getRandomInt (min, max) {
 const getRandomRect = function getRandomRect () {
   const div = document.createElement('div')
 
-  const width = getRandomInt(25, 75)
+  const width = getRandomInt(25, 150)
   const height = getRandomInt(25, 75)
   const innerW = window.innerWidth
   const innerH = window.innerHeight
@@ -54,7 +54,7 @@ for (let i = 0; i < 15; i++) {
 }
 
 const player = {
-  x: innerWidth / 2 - 25,
+  x: window.innerWidth / 2 - 25,
   y: 0,
   width: 50,
   height: 50,
@@ -64,6 +64,24 @@ const player = {
       right: this.x + this.width,
       top: this.y,
       bottom: this.y + this.height
+    }
+  },
+  setBoundingRect: function setBoundingRect ({
+    left,
+    right,
+    top,
+    bottom
+  }) {
+    if (typeof left === 'number') {
+      this.x = left
+    } else if (typeof right === 'number') {
+      this.x = right - this.width
+    }
+
+    if (typeof top === 'number') {
+      this.y = top
+    } else if (typeof bottom === 'number') {
+      this.y = bottom - this.height
     }
   }
 }
@@ -112,14 +130,53 @@ const update = function update (dt) {
   dx *= v * dt / ds
   dy *= v * dt / ds
 
+  // We need to resolve the vertical movement of our ghost
+  // before the horizontal movement
+  // If we do both at the same time, we could phase through corners of blocks
   const g = {
     left: p.left + dx,
-    right: p.right + dx,
-    top: p.top + dy,
-    bottom: p.bottom + dy
+    right: p.right + dx
   }
 
-  // We'll check for vertical collisions
+  // We'll check for horizontal collisions
+  if (dx > 0) {
+    const righter = blocks.filter((b, i) => {
+      if (p.right <= b.left && (p.top < b.bottom && p.bottom > b.top)) {
+        divs[i].style.backgroundColor = '#e87a00'
+        return true
+      } else {
+        divs[i].style.backgroundColor = 'black'
+      }
+    })
+    const lefts = righter.map(block => block.left)
+    // Out of the lefts and our ghost-right, we take the minimum
+    const right = Math.min(g.right, ...lefts)
+    //       |     We can go to the right because our right is still before
+    // [   ] |     the left of that block, so our right bound is our right
+    //
+    //       |     We can't go to the right because of the left of that block
+    //     [ | ]   Our right bound must therefore be the left of that block
+
+    player.setBoundingRect({ right })
+  } else if (dx < 0) {
+    const righter = blocks.filter((b, i) => {
+      if (p.left >= b.right && (p.top < b.bottom && p.bottom > b.top)) {
+        divs[i].style.backgroundColor = '#ffcc00'
+        return true
+      } else {
+        divs[i].style.backgroundColor = 'black'
+      }
+    })
+    const rights = righter.map(block => block.right)
+    const left = Math.max(g.left, ...rights)
+
+    player.setBoundingRect({ left })
+  }
+
+  g.top = p.top + dy
+  g.bottom = p.bottom + dy
+
+  // And also check for vertical collisions
   if (dy > 0) {
     // Find all the blocks that are below the player
     const below = blocks.filter((b, i) => {
@@ -139,15 +196,11 @@ const update = function update (dt) {
     })
     const tops = below.map(block => block.top)
     // Find the top-most
-    const top = Math.min.apply(null, tops)
+    const bottom = Math.min(g.bottom, ...tops)
 
     // If our ghost ever puts us below that bound,
     // our position gets pushed right back up
-    if (g.bottom >= top) {
-      player.y = top - 50
-    } else {
-      player.y = g.top
-    }
+    player.setBoundingRect({ bottom })
   } else if (dy < 0) {
     const above = blocks.filter((b, i) => {
       if (p.top >= b.bottom && (p.left < b.right && p.right > b.left)) {
@@ -158,50 +211,9 @@ const update = function update (dt) {
       }
     })
     const bottoms = above.map(block => block.bottom)
-    const bottom = Math.max.apply(null, bottoms)
+    const top = Math.max(g.top, ...bottoms)
 
-    if (g.top <= bottom) {
-      player.y = bottom
-    } else {
-      player.y = g.top
-    }
-  }
-
-  // And also check for horizontal collisions
-  if (dx > 0) {
-    const righter = blocks.filter((b, i) => {
-      if (p.right <= b.left && (p.top < b.bottom && p.bottom > b.top)) {
-        divs[i].style.backgroundColor = '#e87a00'
-        return true
-      } else {
-        divs[i].style.backgroundColor = 'black'
-      }
-    })
-    const lefts = righter.map(block => block.left)
-    const left = Math.min.apply(null, lefts)
-
-    if (g.right >= left) {
-      player.x = left - 50
-    } else {
-      player.x = g.left
-    }
-  } else if (dx < 0) {
-    const righter = blocks.filter((b, i) => {
-      if (p.left >= b.right && (p.top < b.bottom && p.bottom > b.top)) {
-        divs[i].style.backgroundColor = '#ffcc00'
-        return true
-      } else {
-        divs[i].style.backgroundColor = 'black'
-      }
-    })
-    const rights = righter.map(block => block.right)
-    const right = Math.max.apply(null, rights)
-
-    if (g.left <= right) {
-      player.x = right
-    } else {
-      player.x = g.left
-    }
+    player.setBoundingRect({ top })
   }
 }
 
