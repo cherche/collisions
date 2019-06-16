@@ -101,7 +101,7 @@ const render = function render () {
 const keyboard = new Keyboard()
 keyboard.bind(window)
 
-const v = 300
+const v = 400
 const update = function update (dt) {
   const p = player.getBoundingRect()
   let dx = 0
@@ -130,18 +130,60 @@ const update = function update (dt) {
   dx *= v * dt / ds
   dy *= v * dt / ds
 
-  // We need to resolve the vertical movement of our ghost
-  // before the horizontal movement
-  // If we do both at the same time, we could phase through corners of blocks
   const g = {
     left: p.left + dx,
-    right: p.right + dx
+    right: p.right + dx,
+    top: p.top + dy,
+    bottom: p.bottom + dy
   }
 
-  // We'll check for horizontal collisions
+  // We'll check for vertical collisions
+  if (dy > 0) {
+    // Find all the blocks that are below the player
+    const below = blocks.filter((b, i) => {
+      // This is a tricky condition
+      // Consider an opposite question: when is a block in line with the player?
+      // That happens when g.left >= b.right || g.right <= b.left
+      // (when the player is to the right or left of the block)
+      // DeMorgan's laws allow us to flip that
+      if (p.bottom <= b.top && (g.left < b.right && g.right > b.left)) {
+        // It's unintuitive, but we do not use the ghost to determine collisions
+        // This is because using the ghost represents where the player would be,
+        // so our ghost would move beyond, we could not find the appropriate top
+        // We use it to determine what's in line with the player to avoid
+        // noclip if a block is approached at a corner
+        divs[i].style.backgroundColor = '#1d63af'
+        return true
+      } else {
+        divs[i].style.backgroundColor = 'black'
+      }
+    })
+    const tops = below.map(block => block.top)
+    // Find the top-most
+    const bottom = Math.min(g.bottom, ...tops)
+
+    // If our ghost ever puts us below that bound,
+    // our position gets pushed right back up
+    player.setBoundingRect({ bottom })
+  } else if (dy < 0) {
+    const above = blocks.filter((b, i) => {
+      if (p.top >= b.bottom && (g.left < b.right && g.right > b.left)) {
+        divs[i].style.backgroundColor = '#1ba698'
+        return true
+      } else {
+        divs[i].style.backgroundColor = 'black'
+      }
+    })
+    const bottoms = above.map(block => block.bottom)
+    const top = Math.max(g.top, ...bottoms)
+
+    player.setBoundingRect({ top })
+  }
+
+  // And also check for horizontal collisions
   if (dx > 0) {
     const righter = blocks.filter((b, i) => {
-      if (p.right <= b.left && (p.top < b.bottom && p.bottom > b.top)) {
+      if (p.right <= b.left && (g.top < b.bottom && g.bottom > b.top)) {
         divs[i].style.backgroundColor = '#e87a00'
         return true
       } else {
@@ -160,7 +202,7 @@ const update = function update (dt) {
     player.setBoundingRect({ right })
   } else if (dx < 0) {
     const righter = blocks.filter((b, i) => {
-      if (p.left >= b.right && (p.top < b.bottom && p.bottom > b.top)) {
+      if (p.left >= b.right && (g.top < b.bottom && g.bottom > b.top)) {
         divs[i].style.backgroundColor = '#ffcc00'
         return true
       } else {
@@ -171,49 +213,6 @@ const update = function update (dt) {
     const left = Math.max(g.left, ...rights)
 
     player.setBoundingRect({ left })
-  }
-
-  g.top = p.top + dy
-  g.bottom = p.bottom + dy
-
-  // And also check for vertical collisions
-  if (dy > 0) {
-    // Find all the blocks that are below the player
-    const below = blocks.filter((b, i) => {
-      // This is a tricky condition
-      // Consider an opposite question: when is a block not below the player?
-      // That happens with p.left >= b.right || p.right <= b.left
-      // DeMorgan's laws allow us to flip that
-      if (p.bottom <= b.top && (p.left < b.right && p.right > b.left)) {
-        // It's unintuitive, but we do not use the ghost to determine collisions
-        // This is because using the ghost represents where the player would be,
-        // so our ghost would move beyond, we could not find the appropriate top
-        divs[i].style.backgroundColor = '#1d63af'
-        return true
-      } else {
-        divs[i].style.backgroundColor = 'black'
-      }
-    })
-    const tops = below.map(block => block.top)
-    // Find the top-most
-    const bottom = Math.min(g.bottom, ...tops)
-
-    // If our ghost ever puts us below that bound,
-    // our position gets pushed right back up
-    player.setBoundingRect({ bottom })
-  } else if (dy < 0) {
-    const above = blocks.filter((b, i) => {
-      if (p.top >= b.bottom && (p.left < b.right && p.right > b.left)) {
-        divs[i].style.backgroundColor = '#1ba698'
-        return true
-      } else {
-        divs[i].style.backgroundColor = 'black'
-      }
-    })
-    const bottoms = above.map(block => block.bottom)
-    const top = Math.max(g.top, ...bottoms)
-
-    player.setBoundingRect({ top })
   }
 }
 
