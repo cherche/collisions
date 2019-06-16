@@ -8,18 +8,24 @@ export default function Keyboard () {
     states[e.key] = false
   }
 
+  const releaseStates = function releaseStates () {
+    for (let key of Object.keys(states)) {
+      states[key] = false
+    }
+  }
+
   const keyboard = {
     bind: function bind (el) {
       el.addEventListener('keydown', onkeydown)
       el.addEventListener('keyup', onkeyup)
+      el.addEventListener('blur', function onblur () {
+        releaseStates()
+      })
     },
     unbind: function unbind (el) {
       el.removeEventListener('keydown', onkeydown)
       el.removeEventListener('keyup', onkeyup)
-
-      for (let key of Object.keys(states)) {
-        states[key] = false
-      }
+      releaseStates()
     },
     getStates: function getStates () {
       return states

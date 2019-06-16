@@ -81,7 +81,7 @@ const render = function render () {
 }
 
 const keyboard = new Keyboard()
-keyboard.bind(document.body)
+keyboard.bind(window)
 
 const v = 300
 const update = function update (dt) {
@@ -104,10 +104,13 @@ const update = function update (dt) {
     dx++
   }
 
-  const n = Math.sqrt(dx * dx + dy * dy)
-  if (n === 0) return
-  dx = dx / n * v * dt
-  dy = dy / n * v * dt
+  // This is a normalization factor (actually just the length of our vector)
+  // Consider [dx, dy] = [1, 1]
+  // ds = sqrt2
+  const ds = Math.sqrt(dx * dx + dy * dy)
+  if (ds === 0) return
+  dx *= v * dt / ds
+  dy *= v * dt / ds
 
   const g = {
     left: p.left + dx,
